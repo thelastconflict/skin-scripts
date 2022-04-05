@@ -369,6 +369,7 @@ local function is_hand(str)
                str == "shootshotgun" or str == "shootmachinel"
 end
 local function build(filepath)
+
     local f = io.open(filepath, "r+"):read('a')
     local jsondata = json.decode(f)
 
@@ -408,7 +409,7 @@ local function build(filepath)
     table.sort(jsondata.frames,
                function(a, b) return a.filename < b.filename end)
 
-    for _, aframe in pairs(jsondata.frames) do print(aframe.filename) end
+    -- for _, aframe in pairs(jsondata.frames) do print(aframe.filename) end
     -- need to stick all the arms at the end of the array
 
     local temp_hands = {}
@@ -484,7 +485,7 @@ local function build(filepath)
         end
     end
 
-    for _, group in pairs(grouped_frames) do print(group[2]) end
+    --for _, group in pairs(grouped_frames) do print(group[2]) end
 
     for index, aframe in pairs(jsondata.frames) do
         local fname = aframe.filename
@@ -592,7 +593,8 @@ local JKEY = "json"
 local from_cli_json_path = app.params[JKEY]
 if from_cli_json_path ~= nil then
     build(from_cli_json_path)
-    local split_dot = split(from_cli_json_path, ".")[1]
+    local split_dot = string.sub(from_cli_json_path, 1, string.len(from_cli_json_path) - 5)
+    -- local split_dot = split(from_cli_json_path, ".")[1]
     -- note , does not work on windows since it does not use backslash
     local split_slash = split(split_dot, "/")
 
