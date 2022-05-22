@@ -12,28 +12,39 @@ local body_layer = layers[2]
 
 local all_tag_names = {}
 
--- idle animations are optional and will default to blink if not found
-local all_anim_names = {
+-- idle animations are optional and will default to blink if not found in game
+local all_human_anim_names = {
     "drawn_e", "drawn_n", "drawn_s", "drawn_w", "hurtwalk_e", "hurtwalk_n",
-    "hurtwalk_s", "hurtwalk_w", "idle_e", "idle_n", "idle_s", "idle_w", "run_e",
+    "hurtwalk_s", "hurtwalk_w", --[[ "idle_e", "idle_n", "idle_s", "idle_w", ]] "run_e",
     "run_n", "run_s", "run_w", "sleep_e", "sleep_n", "sleep_s", "sleep_w",
     "walk_e", "walk_n", "walk_s", "walk_w", "hurtidle_e", "hurtidle_n",
     "hurtidle_s", "hurtidle_w", "tiredidle_e", "tiredidle_n", "tiredidle_s",
-    "tiredidle_w", "melee_e", "shoothandgun_e", "shootmachineh_e",
-    "shootshotgun_e", "wink_e", "wink_s", "wink_w", "wink_n", "blink_e", "blink_s", "blink_w", "blink_n"
+    "tiredidle_w", "melee_e", "handgun_e", "machineh_e",
+    "shotgun_e", "wink_e", "wink_s", "wink_w", "wink_n", "blink_e", "blink_s", "blink_w", "blink_n"
 }
--- THE INDEXES ARE NOT ACCURATE AS THESE CAN BE SWAPPED, SO WE DOUBLE CHECK
-if head_layer.name ~= "head" then
-    local tmp = body_layer
-    body_layer = head_layer
-    head_layer = tmp
+
+for _, layer in ipairs(layers) do 
+    if layer.name == "head" then 
+        head_layer = layer;
+    elseif layer.name == "body" then 
+        body_layer = layer;
+    end
 end
 
 local everything_is_good = true 
 
 if #layers > 2 then 
     everything_is_good = false
-    print("!!!CRITICAL!!!: YOU HAVE MORE THAN 2 LAYERS?!")
+
+    for _, layer in ipairs(layers) do 
+        local is_head = layer.name == "head"
+        local is_body = layer.name == "body"
+        local is_eyes = layer.name == "eyes"
+        local is_legs = layer.name == "legs"
+        if (is_head or is_body or is_eyes or is_legs) == false then 
+            print("!!!CRITICAL!!!: PLEASE MARK " .. layer.name .. " AS INVISIBLE")
+        end
+    end
 end
 
 -- Stores (index, image)
@@ -156,11 +167,11 @@ function print_uniques(ls, h_or_b)
     end
 end
 
-table.sort(all_anim_names)
+table.sort(all_human_anim_names)
 table.sort(all_tag_names)
 
 -- check to see if there are any missing animations
-for index, item in ipairs(all_anim_names) do
+for index, item in ipairs(all_human_anim_names) do
     local is_missing = true
     for _, j in ipairs(all_tag_names) do
         if j == item then
@@ -216,13 +227,13 @@ app.command.ExportSpriteSheet {
   trim=true,
   trimSprite=true,
   ignoreEmpty=true,
-  filenameFormat="{layer}-{title}_{tag}_{tagframe}_{duration}",
+  filenameFormat="{layer}-{title}_{tag}_{tagframe}_{duration}", --[[ e.g: body-jeff_walk_0_100 ]]
   extrude=false,
   openGenerated=false,
   layer="",
   tag="",
   splitLayers=true,
-  listLayers=true,
-  listTags=true,
-  listSlices=true
+  listLayers=false,
+  listTags=false,
+  listSlices=false
 }

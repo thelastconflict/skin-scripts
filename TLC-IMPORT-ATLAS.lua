@@ -325,9 +325,7 @@ function json.decode(str)
 end
 
 --[[
-  This script creates a .ase file out of a packed texture atlas, SPECIFICALLY for TLCs head & body splitted animations.
-  
-  TODO: rewrite, we could have just gathered all the bodys and heads seperately, loop through em and just draw them in their respective layers but this script works for now and no reason to fix
+  This script creates a .ase file out of a packed texture atlas, SPECIFICALLY for TLCs head & body and eyes splitted animations.
 
   Credits:
     json decoding by rxi - https://github.com/rxi/json.lua
@@ -353,7 +351,13 @@ local function draw_section(src_img, dest_img, src_rect, dest_rect, palette)
             local color_or_index = src_img:getPixel(src_x, src_y)
             local color;
             if src_img.colorMode == ColorMode.INDEXED then
-                color = palette:getColor(color_or_index)
+                -- fixes greenish artifacts when importing from an indexed file: https://discord.com/channels/324979738533822464/324979738533822464/975147445564604416
+                -- because indexed sprites have a special index as the transparent color: https://www.aseprite.org/docs/color-mode/#indexed
+                if color_or_index ~= src_img.spec.transparentColor then
+                    color = palette:getColor(color_or_index)
+                else
+                    color = Color {r = 0, g = 0, b = 0, a = 0}
+                end
             else
                 color = color_or_index
             end
@@ -365,9 +369,16 @@ local function draw_section(src_img, dest_img, src_rect, dest_rect, palette)
     end
 end
 local function is_hand(str)
-    return str == "melee" or str == "shoothandgun" or str == "shootmachineh" or
-               str == "shootshotgun" or str == "shootmachinel"
+    return str == "melee" or str == "handgun" or str == "machineh" or str ==
+               "shotgun" or str == "machinel" or str == "death" or str ==
+               "corpse"
 end
+
+function append_tables(t1, t2)
+    for i = 1, #t2 do t1[#t1 + 1] = t2[i] end
+    return t1
+end
+
 local function build(filepath)
 
     local f = io.open(filepath, "r+"):read('a')
@@ -392,18 +403,12 @@ local function build(filepath)
     local palettes = sprite.palettes[1]
     local og_size = jsondata.frames[1].sourceSize
     local new_sprite = Sprite(og_size.w, og_size.h)
+    new_sprite:setPalette(palettes)
     local body_layer = new_sprite.layers[1]
     -- important that head and body are named layers because they are used in the export
 
     body_layer.name = "body"
     local frame = new_sprite.frames[1]
-
-    local head_layer = new_sprite:newLayer()
-    head_layer.name = "head"
-
-
-    -- have to keep a head_index here because they can be anywhere in the json file
-    local head_index = 1
 
     -- NOTE: aseprite does not sort by filename on export so we must sort ourselves, otherwise if the head comes first in the json, this script wont work correctly
     table.sort(jsondata.frames,
@@ -412,34 +417,9 @@ local function build(filepath)
     -- for _, aframe in pairs(jsondata.frames) do print(aframe.filename) end
     -- need to stick all the arms at the end of the array
 
-    local temp_hands = {}
-    local reorder_first = {}
-    for index, aframe in pairs(jsondata.frames) do
-        local frames = jsondata.frames
-        local fname = aframe.filename
-        local esdf = split(fname, "_")
-        local ename = esdf[1]
-        local state = esdf[2]
-        local dir = esdf[3]
-        local frame_num = tonumber(esdf[4])
-        local name_parts = split(ename, "-")
-        local head_body_arms = name_parts[1]
-        if is_hand(state) then
-            local temp = aframe
-            table.insert(temp_hands, temp)
-        else
-            table.insert(reorder_first, aframe)
-        end
-    end
-
-    for index, aframe in pairs(temp_hands) do
-        -- put hands at end of array
-        table.insert(reorder_first, aframe)
-    end
-
-    jsondata.frames = reorder_first
     -- group and pair up the animation frames, 1st gather all of the _0 frames
-    local grouped_frames = {}
+    -- Table<Table<AtlasFrame>>
+    local all_grouped_anim_frames = {}
     for index, aframe in pairs(jsondata.frames) do
         local fname = aframe.filename
         local esdf = split(fname, "_")
@@ -447,24 +427,18 @@ local function build(filepath)
         local state = esdf[2]
         local dir = esdf[3]
         local frame_num = tonumber(esdf[4])
-
-        local name_parts = split(ename, "-")
-        local head_body_arms = name_parts[1]
-        if head_body_arms == "body" or head_body_arms == "head" or
-            is_hand(state) then
-            -- PUSH ONLY WHEN we encounter a 0
-            if frame_num == 0 then
-                local nested = {}
-                table.insert(nested, fname)
-                table.insert(grouped_frames, nested)
-            end
+        -- PUSH ONLY WHEN we encounter a 0
+        if frame_num == 0 then
+            local nested = {}
+            table.insert(nested, aframe)
+            table.insert(all_grouped_anim_frames, nested)
         end
     end
 
-    -- group and pair up the animation frames, 2nd, gather the rest of the related frames
-    -- this is for generating the tags
-    for index, group in pairs(grouped_frames) do
-        local fname = group[1]
+    -- group the rest of the frames
+    for index, group in pairs(all_grouped_anim_frames) do
+        local start_frame = group[1]
+        local fname = start_frame.filename
         local esdf = split(fname, "_")
         local ename = esdf[1]
         local state = esdf[2]
@@ -480,71 +454,83 @@ local function build(filepath)
             if ename == ename2 and state == state2 and dir == dir2 and
                 frame_num2 ~= 0 then
                 -- print(fname2)
-                table.insert(group, fname2)
+                table.insert(group, aframe2)
             end
         end
     end
 
-    --for _, group in pairs(grouped_frames) do print(group[2]) end
+    local head_layer = nil
 
-    for index, aframe in pairs(jsondata.frames) do
-        local fname = aframe.filename
-        local esdf = split(fname, "_")
-        local ename = esdf[1]
-        local state = esdf[2]
-        local dir = esdf[3]
-        local frame_num = tonumber(esdf[4])
+    local eyes_layer = nil
+    local legs_layer = nil
 
-        local name_parts = split(ename, "-")
-        local head_body_arms = name_parts[1]
-        local src_loc = aframe.frame
-        local place_loc = aframe.spriteSourceSize
+    -- String, Table<Table<AtlasFrame>> -> Table<Table<AtlasFrame>>
+    -- also reoders to some parts to defer to the end
+    function filter_by_body_part(bpart_name, grouped_frames)
+        local anims = {}
+        local defer = {}
+        for index, group in ipairs(grouped_frames) do
+            local start_frame = group[1]
+            local fname = start_frame.filename
+            local esdf = split(fname, "_")
+            local ename = esdf[1]
+            local state = esdf[2]
+            local limb_name_parts = split(ename, "-")
+            local limb_name = limb_name_parts[1]
 
-        local duration_from_name = tonumber(esdf[5])
-        local is_body = head_body_arms == "body"
-        local is_head = head_body_arms == "head"
-        local is_arms = is_hand(state)
-        -- adding or arms fucks up drawing the last few frames
-        if is_body or is_arms then
-            -- index needs to be adjusted the case of arms
-            -- because we merge the head and body in layers, the amount of frames will be (num of heads / 2) + arms
-            local dframe_index = index
-            frame = new_sprite:newFrame()
-            if is_arms then dframe_index = frame.frameNumber - 1 end
-            local dest_img = new_sprite.cels[dframe_index].image
-
-            if is_arms then
-                dest_img = new_sprite:newCel(body_layer, dframe_index).image
+            if limb_name == bpart_name and is_hand(state) then
+                -- push into defered
+                table.insert(defer, group)
+            elseif limb_name == bpart_name then
+                table.insert(anims, group)
             end
-            draw_section(image, dest_img, src_loc, place_loc, palettes)
+        end
+        if #anims > 0 then append_tables(anims, defer) end
+        return anims
+    end
 
-            -- will try to pull duration from filename
+    -- Table<Table<AtlasFrame>>
+    local bodies = filter_by_body_part("body", all_grouped_anim_frames)
+    local heads = filter_by_body_part("head", all_grouped_anim_frames)
+
+    -- if the atlas does not have body- or head- prefixes, we assume its the body and we proceed with base_anim to create all the frames and anim tags
+    local base_anim = all_grouped_anim_frames
+
+    if #bodies > #heads then 
+        base_anim = bodies
+    elseif #heads > #bodies then
+        base_anim = heads
+    else
+        base_anim = all_grouped_anim_frames
+    end
+
+    -- create all the frames first!
+    for i, group in pairs(base_anim) do
+        for j, aframe in pairs(group) do
+            local newframe = new_sprite:newFrame()
+            local fname = aframe.filename
+            local esdf = split(fname, "_")
+            local duration_from_name = tonumber(esdf[5])
+            local curr_global_index = newframe.frameNumber - 1
             if duration_from_name ~= nil then
-                frame.previous.duration = duration_from_name / 1000
+                new_sprite.frames[curr_global_index].duration =
+                    duration_from_name / 1000
             else
                 if aframe.duration ~= nil then
-                    frame.previous.duration = aframe.duration / 1000
+                    new_sprite.frames[curr_global_index].duration =
+                        aframe.duration / 1000
                 end
             end
         end
-
-        if is_head then
-            local dest_img = new_sprite:newCel(head_layer, head_index).image
-            -- print(cel, head_layer.cels)
-            draw_section(image, dest_img, src_loc, place_loc, palettes)
-            head_index = head_index + 1
-            -- start at the first frame of the first layer cel image
-        end
     end
 
-    -- # is the length operator
-    new_sprite:deleteFrame(#new_sprite.frames)
+    -- create the tags
     local anim_start_index = 1
     local anim_end_index = 1
 
-    for index, group in pairs(grouped_frames) do
-        local start_fname = group[1]
-        local end_fname = group[#group]
+    for index, group in pairs(base_anim) do
+        local start_fname = group[1].filename
+        local end_fname = group[#group].filename
 
         local fname = start_fname
         local esdf = split(fname, "_")
@@ -563,20 +549,71 @@ local function build(filepath)
         local frame_num2 = tonumber(esdf2[4]) -- one off
 
         local anim_name = state .. "_" .. dir
-        if head_body_arms == "body" or is_hand(state) then
 
-            anim_end_index = anim_start_index + #group
+        anim_end_index = anim_start_index + #group
 
-            local new_tag = new_sprite:newTag(anim_start_index,
-                                              anim_end_index - 1)
-            new_tag.name = anim_name
-            anim_start_index = anim_end_index
-        end
-        --[[  local first_anim = ename .. state .. dir .. frame_num
-            local last_anim = ename2 .. state2 .. dir2 .. frame_num2
-            print(first_anim)
-            print(last_anim) ]]
+        local new_tag = new_sprite:newTag(anim_start_index, anim_end_index - 1)
+        new_tag.name = anim_name
+        anim_start_index = anim_end_index
     end
+
+    local eyes = filter_by_body_part("eyes", all_grouped_anim_frames)
+
+    local legs = filter_by_body_part("legs", all_grouped_anim_frames)
+
+    if #heads > 0 and head_layer == nil then
+        head_layer = new_sprite:newLayer()
+        head_layer.name = "head"
+    end
+
+    if #eyes > 0 and eyes_layer == nil then
+        eyes_layer = new_sprite:newLayer()
+        eyes_layer.name = "eyes"
+    end
+
+    if #legs > 0 and legs_layer == nil then
+        legs_layer = new_sprite:newLayer()
+        legs_layer.name = "eyes"
+    end
+    -- tag, Table<Table<AFrame>>, layer
+    function draw_into_tag(tag, grouped, draw_layer)
+        for index_group, group in ipairs(grouped) do
+            local fname = group[1].filename
+            local esdf = split(fname, "_")
+            local ename = esdf[1]
+            local state = esdf[2]
+            local dir = esdf[3]
+
+            local anim_name = state .. "_" .. dir
+            if tag.name == anim_name then
+                local tag_index_start = tag.fromFrame.frameNumber
+                for j, aframe in ipairs(group) do
+                    local src_loc = aframe.frame
+                    local place_loc = aframe.spriteSourceSize
+                    local dest_img = new_sprite:newCel(draw_layer,
+                                                       tag_index_start).image
+                    draw_section(image, dest_img, src_loc, place_loc, palettes)
+                    tag_index_start = tag_index_start + 1
+                end
+            end
+        end
+    end
+
+    for i, tag in ipairs(new_sprite.tags) do
+        if body_layer ~= nil then draw_into_tag(tag, bodies, body_layer) end
+        if head_layer ~= nil then draw_into_tag(tag, heads, head_layer) end
+        if eyes_layer ~= nil then draw_into_tag(tag, eyes, eyes_layer) end
+        if legs_layer ~= nil then draw_into_tag(tag, legs, eyes_layer) end
+
+        if #heads == 0 and #bodies == 0 and #eyes == 0 then 
+            -- draw everything
+            draw_into_tag(tag, all_grouped_anim_frames, body_layer)
+        end
+    end
+
+    -- delete the extra empty frame
+    new_sprite:deleteFrame(#new_sprite.frames)
+
     -- SHOULD FIX BAD CROP REGIONS https://github.com/aseprite/aseprite/issues/3206#issuecomment-1069508834
     app.command.CanvasSize {
         ui = false,
@@ -593,7 +630,8 @@ local JKEY = "json"
 local from_cli_json_path = app.params[JKEY]
 if from_cli_json_path ~= nil then
     build(from_cli_json_path)
-    local split_dot = string.sub(from_cli_json_path, 1, string.len(from_cli_json_path) - 5)
+    local split_dot = string.sub(from_cli_json_path, 1,
+                                 string.len(from_cli_json_path) - 5)
     -- local split_dot = split(from_cli_json_path, ".")[1]
     -- note , does not work on windows since it does not use backslash
     local split_slash = split(split_dot, "/")
