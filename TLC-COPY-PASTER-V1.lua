@@ -27,6 +27,7 @@ function get_layer_index(ls, name)
     return res
 end
 
+-- returns tag or nil
 function get_tag(ls, name)
     local res = nil
     for i, t in ipairs(ls) do if t.name == name then res = t end end
@@ -86,10 +87,10 @@ end
 local HEAD_LAYER_INDEX = get_layer_index(layers, "head")
 local BODY_LAYER_INDEX = get_layer_index(layers, "body")
 
-local HEAD_PASTE_SELECT = "HEAD LAYER PASTE SELECT"
+local HEAD_PASTE_SELECT = "BLINK SPREAD HEAD LAYER PASTE SELECT"
 local head_paste_index = #layers --get_layer_index(layers, "head")
 local HEAD_PASTE_CONFIRM = "HEAD_PASTE_CONFIRM"
-local BODY_PASTE_SELECT = "BODY LAYER PASTE SELECT"
+local BODY_PASTE_SELECT = "WALK SPREAD BODY LAYER PASTE SELECT"
 local body_paste_index = #layers -- get_layer_index(layers, "body")
 local BODY_PASTE_CONFIRM = "BODY_PASTE_CONFIRM"
 
@@ -138,10 +139,10 @@ dlg:combobox{
         pastey(to_layer, "hurtwalk_n", hlayer, {eyes_closed_cel_n}, false)
         pastey(to_layer, "hurtwalk_s", hlayer, {eyes_part_cel_s}, false)
 
-        pastey(to_layer, "run_e", hlayer, {eyes_full_cel_e}, false)
+        --[[ pastey(to_layer, "run_e", hlayer, {eyes_full_cel_e}, false)
         pastey(to_layer, "run_w", hlayer, {eyes_full_cel_w}, false)
         pastey(to_layer, "run_n", hlayer, {eyes_closed_cel_n}, false)
-        pastey(to_layer, "run_s", hlayer, {eyes_full_cel_s}, false)
+        pastey(to_layer, "run_s", hlayer, {eyes_full_cel_s}, false) ]]
 
         pastey(to_layer, "sleep_e", hlayer, {eyes_closed_cel_e}, false)
         pastey(to_layer, "sleep_w", hlayer, {eyes_closed_cel_w}, false)
@@ -159,10 +160,10 @@ dlg:combobox{
         pastey(to_layer, "walk_n", hlayer, {eyes_closed_cel_n}, false)
         pastey(to_layer, "walk_s", hlayer, {eyes_full_cel_s}, false)
 
-        pastey(to_layer, "wink_e", hlayer, {eyes_closed_cel_e}, false)
+        --[[ pastey(to_layer, "wink_e", hlayer, {eyes_closed_cel_e}, false)
         pastey(to_layer, "wink_w", hlayer, {eyes_closed_cel_w}, false)
-        pastey(to_layer, "wink_n", hlayer, {eyes_closed_cel_n}, false)
-        pastey(to_layer, "wink_s", hlayer, {eyes_closed_cel_s}, false)
+        pastey(to_layer, "wink_n", hlayer, {eyes_closed_cel_n}, false) ]]
+        pastey(to_layer, "wink_s", hlayer, {eyes_full_cel_s, eyes_full_cel_s, eyes_full_cel_s}, false)
 
         pastey(to_layer, "drawn_e", hlayer, {eyes_full_cel_e}, false)
         pastey(to_layer, "drawn_w", hlayer, {eyes_full_cel_w}, false)
@@ -198,7 +199,7 @@ dlg:combobox{
         local leg_close_e = walk_e_cels[3]
         local leg_still_e2 = walk_e_cels[4]
 
-        pastey(to_layer, "run_e", blayer, walk_e_cels, true)
+        --pastey(to_layer, "run_e", blayer, walk_e_cels, true)
 
         local walk_n_cels = get_cels_by_tag(sprite.tags, "walk_n", blayer)
         local leg_spread_n = walk_n_cels[1]
@@ -206,14 +207,14 @@ dlg:combobox{
         local leg_close_n = walk_n_cels[3]
         local leg_still_n2 = walk_n_cels[4]
 
-        pastey(to_layer, "run_n", blayer, walk_n_cels, true)
+        --pastey(to_layer, "run_n", blayer, walk_n_cels, true)
 
         local walk_s_cels = get_cels_by_tag(sprite.tags, "walk_s", blayer)
         local leg_spread_s = walk_s_cels[1]
         local leg_still_s1 = walk_s_cels[2]
         local leg_close_s = walk_s_cels[3]
         local leg_still_s2 = walk_s_cels[4]
-        pastey(to_layer, "run_s", blayer, walk_s_cels, true)
+        --pastey(to_layer, "run_s", blayer, walk_s_cels, true)
 
         local walk_w_cels = get_cels_by_tag(sprite.tags, "walk_w", blayer)
         local leg_spread_w = walk_w_cels[1]
@@ -221,7 +222,7 @@ dlg:combobox{
         local leg_close_w = walk_w_cels[3]
         local leg_still_w2 = walk_w_cels[4]
 
-        pastey(to_layer, "run_w", blayer, walk_w_cels, true)
+        -- pastey(to_layer, "run_w", blayer, walk_w_cels, true)
 
         pastey(to_layer, "blink_e", blayer, {leg_still_e1}, true)
         pastey(to_layer, "blink_n", blayer, {leg_still_n1}, true)
@@ -238,10 +239,10 @@ dlg:combobox{
         pastey(to_layer, "sleep_s", blayer, {leg_still_s1}, true)
         pastey(to_layer, "sleep_w", blayer, {leg_still_w1}, true)
 
-        pastey(to_layer, "wink_e", blayer, {leg_still_e1}, true)
-        pastey(to_layer, "wink_n", blayer, {leg_still_n1}, true)
-        pastey(to_layer, "wink_s", blayer, {leg_still_s1}, true)
-        pastey(to_layer, "wink_w", blayer, {leg_still_w1}, true)
+        --pastey(to_layer, "wink_e", blayer, {leg_still_e1}, true)
+        --pastey(to_layer, "wink_n", blayer, {leg_still_n1}, true)
+        pastey(to_layer, "wink_s", blayer, {leg_still_s1, leg_still_s1, leg_still_s1}, true)
+        --pastey(to_layer, "wink_w", blayer, {leg_still_w1}, true)
 
         pastey(to_layer, "tiredidle_e", blayer, {leg_still_e1}, true)
         pastey(to_layer, "tiredidle_n", blayer, {leg_still_n1}, true)

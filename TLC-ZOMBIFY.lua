@@ -324,14 +324,12 @@ function json.decode(str)
     return res
 end
 
---[[
-  This script creates a .ase file out of a packed texture atlas, SPECIFICALLY for TLCs head & body and eyes splitted animations.
+--[[ 
 
-  Credits:
-    json decoding by rxi - https://github.com/rxi/json.lua
-]]
+This script takes a TLC human skin and turns it into a zombie
+It will prompt for you to select skin tones but will try automatically to guess
 
--- start main
+]] -- operates on atlased and json files!
 
 local function split(str, sep)
     local result = {}
@@ -368,68 +366,165 @@ local function draw_section(src_img, dest_img, src_rect, dest_rect, palette)
         end
     end
 end
-local function is_hand(str)
-    return str == "melee" or str == "handgun" or str == "machineh" or str ==
-               "shotgun" or str == "machinel" or str == "death" or str ==
-               "corpse"
+
+-- Table<Tag> -> Tag | nil
+local function get_tag(tbl, search_name)
+    local res = nil
+    for _, tag in ipairs(tbl) do
+        if tag.name == search_name then
+            res = tag
+            break
+        end
+    end
+    return res
 end
 
-function append_tables(t1, t2)
-    for i = 1, #t2 do t1[#t1 + 1] = t2[i] end
-    return t1
+-- tag, Table<Table<AFrame>>, layer
+local function draw_into_tag(tag, grouped, draw_layer, new_sprite, source_img,
+                             palettes)
+    for index_group, group in ipairs(grouped) do
+        local fname = group[1].filename
+        local esdf = split(fname, "_")
+        local ename = esdf[1]
+        local state = esdf[2]
+        local dir = esdf[3]
+
+        local anim_name = state .. "_" .. dir
+        -- local matches = tag.name == anim_name
+        local matches = string.match(tag.name, anim_name)
+        -- print(anim_name, tag.name, matches)
+        if matches then
+            local tag_index_start = tag.fromFrame.frameNumber
+            for j, aframe in ipairs(group) do
+                -- for the d2 state, there are only 3 frames of walk so we should only go up to that amount
+                if j <= #group then
+                    local src_loc = aframe.frame
+                    local place_loc = aframe.spriteSourceSize
+                    local dest_img = new_sprite:newCel(draw_layer,
+                                                       tag_index_start).image
+                    draw_section(source_img, dest_img, src_loc, place_loc,
+                                 palettes)
+                    tag_index_start = tag_index_start + 1
+                end
+            end
+        end
+    end
 end
 
-local function build(filepath)
+-- select the zombie base sprite
+local dlg = Dialog()
 
-    local f = io.open(filepath, "r+"):read('a')
-    local jsondata = json.decode(f)
+local PICKER = "picker"
+local PACKED = "select packed PNG"
+local AJSON = "select json file"
+local zbase = nil;
 
-    if jsondata == nil then
-        print("could not load file " .. filepath)
-        print("check your json file for errors")
+-- todo: sort the skin colors and detect duplicates?
+-- assume white and have a button option that says "try based off position?"
 
-        return 1
+-- we don't really care about eye colors
+-- still need to find out what the arm colors are?
+-- we can replace with a tolerance of 3
+local white_tones = {
+    -- Color {r = 192, g = 192, b = 192, a = 255},
+    -- Color {r = 245, g = 245, b = 240, a = 255},
+    -- Color {r = 255, g = 204, b = 51, a = 255},
+    Color {r = 180, g = 125, b = 50, a = 255},
+    Color {r = 213, g = 164, b = 98, a = 255},
+    Color {r = 255, g = 215, b = 165, a = 255},
+    Color {r = 245, g = 190, b = 125, a = 255}
+}
+
+local zombie_tones = {
+    -- Color {r = 140, g = 140, b = 140, a = 255},
+    -- Color {r = 155, g = 155, b = 155, a = 255},
+    -- Color {r = 140, g = 140, b = 140, a = 255},
+    Color {r = 75, g = 70, b = 60, a = 255},
+    Color {r = 75, g = 70, b = 60, a = 255},
+    Color {r = 115, g = 110, b = 95, a = 255},
+    Color {r = 100, g = 90, b = 80, a = 255}
+}
+
+local skin_colors = white_tones;
+-- include the zed base ase with the game and hardcode a path to it, see if it exsts, if not you have to select it yourself
+local zbase_ase_path = "/mnt/shared/t0-assets/zeds/ase/ZBASE-NEW-SUITE.ase"
+
+local infered_json_filename = nil
+dlg:file{
+    id = PICKER,
+    label = "Select the zombie base icon",
+    title = "zed base picker",
+    load = false,
+    open = false,
+    filename = zbase_ase_path,
+    filetypes = {"ase"}
+}:file{
+    id = PACKED,
+    label = PACKED,
+    filetypes = {"png"},
+    open = true,
+    load = false,
+    onchange = function()
+        local png_path = dlg.data[PACKED];
+        infered_json_filename = app.fs.joinPath(app.fs.filePath(png_path),
+                                                app.fs.fileTitle(png_path) ..
+                                                    ".json")
+        dlg:modify{id = AJSON, filename = infered_json_filename}
+        -- weirdly still not effecting the file json default
+        -- print(infered_json_filename)
     end
-    -- split head and body into 2 seperate layers
-    -- NOTE: aseprite cannot deal with STACKED tags!
-    local image = app.activeImage
-    local sprite = app.activeSprite
+}:file{
+    id = AJSON,
+    label = AJSON,
+    filename = infered_json_filename,
+    filetypes = {"json"},
+    open = true,
+    load = false
+}
 
-    if sprite == nil then
-        print("you are not viewing a sprite on the active tab")
-        return 1
+-- todo: button that asks if we want to try and determine this off hard coded face positions?
+
+for i = 1, #white_tones, 1 do
+    local SCOL = "Skin Color " .. i;
+    dlg:color{
+        id = SCOL,
+        label = SCOL,
+        color = white_tones[i],
+        onchange = function() skin_colors[i] = dlg.data[SCOL] end
+    }
+end
+
+local packed_png = nil
+local jsondata = nil
+dlg:button{
+    text = "Ok",
+    onclick = function()
+        local zbasefile = dlg.data[PICKER]
+        local human_packed_png = dlg.data[PACKED]
+        local json_path = dlg.data[AJSON]
+        app.command.OpenFile {filename = human_packed_png};
+        -- this must be the active image right after we open it!
+        packed_png = app.activeImage
+        jsondata = json.decode(io.open(json_path, "r+"):read("a"));
+        zbase = Sprite {fromFile = zbasefile}
+        dlg:close()
     end
+}:show()
 
-    local palettes = sprite.palettes[1]
-    local og_size = jsondata.frames[1].sourceSize
-    local new_sprite = Sprite(og_size.w, og_size.h)
+if zbase ~= nil then
 
-    new_sprite.filename = app.fs.fileTitle(filepath);
-    new_sprite:setPalette(palettes)
-    local body_layer = new_sprite.layers[1]
-    -- important that head and body are named layers because they are used in the export
+    -- create new layers of body and head
+    -- also we gotta split the legs
+    -- grab walk animations, 2 and 3 only(so south and north in the zbase have all the walk anim legs, so we will just copy all the walk frames over to walk)
 
-    body_layer.name = "body"
-    local frame = new_sprite.frames[1]
+    local head_layer = zbase:newLayer()
+    local HEAD = "head"
+    head_layer.name = HEAD
 
-    -- NOTE: This is not "human sort!" it will sort like: idle_s_0, idle_s_10, idle_s_2. 
-    -- sorting will lead to bugs as stated above, anims with over 10 frames
-    --[[ table.sort(jsondata.frames,
-               function(a, b) return a.filename < b.filename end) ]]
-    -- NOT STABLE SORT!
-    --[[ table.sort(jsondata.frames, function(a, b)
-        local split_a = split(a.filename, "_")
-        local split_b = split(b.filename, "_")
-        local state_a = split_a[3]
-        local state_b = split_b[3]
+    local body_layer = zbase:newLayer()
+    local BODY = "body"
+    body_layer.name = BODY
 
-        local framenum_a = tonumber(split_a[4])
-        local framenum_b = tonumber(split_b[4])
-        return state_a == state_b and framenum_a < framenum_b
-    end) ]]
-
-    -- group and pair up the animation frames, 1st gather all of the _0 frames
-    -- Table<Table<AtlasFrame>>
     local all_grouped_anim_frames = {}
     for index, aframe in pairs(jsondata.frames) do
         local fname = aframe.filename
@@ -470,14 +565,13 @@ local function build(filepath)
         end
     end
 
-    local head_layer = nil
-
-    local eyes_layer = nil
-    local legs_layer = nil
-
     -- String, Table<Table<AtlasFrame>> -> Table<Table<AtlasFrame>>
     -- also reoders to some parts to defer to the end
     function filter_by_body_part(bpart_name, grouped_frames)
+        function append_tables(t1, t2)
+            for i = 1, #t2 do t1[#t1 + 1] = t2[i] end
+            return t1
+        end
         local anims = {}
         local defer = {}
         for index, group in ipairs(grouped_frames) do
@@ -489,10 +583,7 @@ local function build(filepath)
             local limb_name_parts = split(ename, "-")
             local limb_name = limb_name_parts[1]
 
-            if limb_name == bpart_name and is_hand(state) then
-                -- push into defered
-                table.insert(defer, group)
-            elseif limb_name == bpart_name then
+            if limb_name == bpart_name then
                 table.insert(anims, group)
             end
         end
@@ -500,130 +591,71 @@ local function build(filepath)
         return anims
     end
 
-    -- Table<Table<AtlasFrame>>
-    local bodies = filter_by_body_part("body", all_grouped_anim_frames)
+    local walk_tags = {
+        "walk_e", "walk_n", "walk_s", "walk_w", "d1-walk_e", "d1-walk_n",
+        "d1-walk_s", "d1-walk_w", "d2-walk_e", "d2-walk_n", "d2-walk_s",
+        "d2-walk_w"
+    };
+
     local heads = filter_by_body_part("head", all_grouped_anim_frames)
 
-    -- if the atlas does not have body- or head- prefixes, we assume its the body and we proceed with base_anim to create all the frames and anim tags
-    local base_anim = all_grouped_anim_frames
+    local bodies = filter_by_body_part("body", all_grouped_anim_frames)
 
-    if #bodies > #heads then
-        base_anim = bodies
-    elseif #heads > #bodies then
-        base_anim = heads
-    else
-        base_anim = all_grouped_anim_frames
+    for _, tag_name in ipairs(walk_tags) do
+        local tag = get_tag(zbase.tags, tag_name)
+        draw_into_tag(tag, heads, head_layer, zbase, packed_png, nil)
+        draw_into_tag(tag, bodies, body_layer, zbase, packed_png, nil)
     end
 
-    -- create all the frames first!
-    for i, group in pairs(base_anim) do
-        for j, aframe in pairs(group) do
-            local newframe = new_sprite:newFrame()
-            local fname = aframe.filename
-            local esdf = split(fname, "_")
-            local duration_from_name = tonumber(esdf[5])
-            local curr_global_index = newframe.frameNumber - 1
-            if duration_from_name ~= nil then
-                new_sprite.frames[curr_global_index].duration =
-                    duration_from_name / 1000
-            else
-                if aframe.duration ~= nil then
-                    new_sprite.frames[curr_global_index].duration =
-                        aframe.duration / 1000
-                end
+    local range_sel = app.range
+    range_sel.layers = {body_layer, head_layer}
+
+    for i, tone in ipairs(white_tones) do
+        local ztone = zombie_tones[i]
+        -- select all the frames?
+
+        -- tolerance has to be 5+? or it wont work on brandi
+        local tol = 5
+        app.command.ReplaceColor {
+            ui = false,
+            -- channels = FilterChannels.RGBA | FilterChannels.INDEX,
+            from = tone,
+            to = ztone,
+            tolerance = tol
+        }
+    end
+
+    -- d1 shift head 8 down
+    local d1s = {"d1-walk_e", "d1-walk_n", "d1-walk_s", "d1-walk_w"}
+    -- print(range_sel.frames)
+    local ls = {}
+    for i, tname in ipairs(d1s) do
+        -- need to select only relevant frames
+        local tag = get_tag(zbase.tags, tname)
+        local start = tag.fromFrame.frameNumber
+        local to = tag.toFrame.frameNumber
+
+        for j = start, to, 1 do 
+            local hcel = head_layer:cel(j)
+            local bcel = body_layer:cel(j)
+            if hcel ~= nil or bcel ~= nil then 
+                local pos = hcel.position
+                pos.y = pos.y + 8
+                hcel.position = pos
+
+                local bpos = bcel.position
+                bpos.y = bpos.y + 8
+                bcel.position = bpos
             end
         end
     end
 
-    -- create the tags
-    local anim_start_index = 1
-    local anim_end_index = 1
+    -- TODO: we can mask the body of onto d1 body
 
-    for index, group in pairs(base_anim) do
-        local start_fname = group[1].filename
-        local end_fname = group[#group].filename
-
-        local fname = start_fname
-        local esdf = split(fname, "_")
-        local ename = esdf[1]
-        local state = esdf[2]
-        local dir = esdf[3]
-        local frame_num = tonumber(esdf[4])
-
-        local name_parts = split(ename, "-")
-        local head_body_arms = name_parts[1]
-
-        local esdf2 = split(end_fname, "_")
-        local ename2 = esdf2[1]
-        local state2 = esdf2[2]
-        local dir2 = esdf2[3]
-        local frame_num2 = tonumber(esdf2[4]) -- one off
-
-        local anim_name = state .. "_" .. dir
-
-        anim_end_index = anim_start_index + #group
-
-        local new_tag = new_sprite:newTag(anim_start_index, anim_end_index - 1)
-        new_tag.name = anim_name
-        anim_start_index = anim_end_index
-    end
-
-    local eyes = filter_by_body_part("eyes", all_grouped_anim_frames)
-
-    local legs = filter_by_body_part("legs", all_grouped_anim_frames)
-
-    if #heads > 0 and head_layer == nil then
-        head_layer = new_sprite:newLayer()
-        head_layer.name = "head"
-    end
-
-    if #eyes > 0 and eyes_layer == nil then
-        eyes_layer = new_sprite:newLayer()
-        eyes_layer.name = "eyes"
-    end
-
-    if #legs > 0 and legs_layer == nil then
-        legs_layer = new_sprite:newLayer()
-        legs_layer.name = "legs"
-    end
-    -- tag, Table<Table<AFrame>>, layer
-    function draw_into_tag(tag, grouped, draw_layer)
-        for index_group, group in ipairs(grouped) do
-            local fname = group[1].filename
-            local esdf = split(fname, "_")
-            local ename = esdf[1]
-            local state = esdf[2]
-            local dir = esdf[3]
-
-            local anim_name = state .. "_" .. dir
-            if tag.name == anim_name then
-                local tag_index_start = tag.fromFrame.frameNumber
-                for j, aframe in ipairs(group) do
-                    local src_loc = aframe.frame
-                    local place_loc = aframe.spriteSourceSize
-                    local dest_img = new_sprite:newCel(draw_layer,
-                                                       tag_index_start).image
-                    draw_section(image, dest_img, src_loc, place_loc, palettes)
-                    tag_index_start = tag_index_start + 1
-                end
-            end
-        end
-    end
-
-    for i, tag in ipairs(new_sprite.tags) do
-        if body_layer ~= nil then draw_into_tag(tag, bodies, body_layer) end
-        if head_layer ~= nil then draw_into_tag(tag, heads, head_layer) end
-        if eyes_layer ~= nil then draw_into_tag(tag, eyes, eyes_layer) end
-        if legs_layer ~= nil then draw_into_tag(tag, legs, legs_layer) end
-
-        if #heads == 0 and #bodies == 0 and #eyes == 0 then
-            -- draw everything
-            draw_into_tag(tag, all_grouped_anim_frames, body_layer)
-        end
-    end
-
-    -- delete the extra empty frame
-    new_sprite:deleteFrame(#new_sprite.frames)
+    -- reorganize layers to be 1 down
+    -- print(head_layer.stackIndex)
+    head_layer.stackIndex = 4
+    body_layer.stackIndex = 5
 
     -- SHOULD FIX BAD CROP REGIONS https://github.com/aseprite/aseprite/issues/3206#issuecomment-1069508834
     app.command.CanvasSize {
@@ -634,51 +666,13 @@ local function build(filepath)
         bottom = 0,
         trimOutside = true
     }
-    -- creating a new frame creates a cel but we dont need any for the body if we are creating arm frames
+    -- close the opened packed image tab
 end
 
-local JKEY = "json"
-local PICKER = "picker"
-local from_cli_json_path = app.params[JKEY]
-if from_cli_json_path ~= nil then
-    build(from_cli_json_path)
+-- select your skin tones (will try to auto select if white skinned because it is the most common)
+-- eyes are by position though?
 
-    -- filename must also have extension
-    local name = app.fs.filePathAndTitle(from_cli_json_path) .. ".ase"
+-- position the heads and body correctly for all the dismemberment states also
 
-    app.command.saveFileAs {["filename"] = name, ["filename-format"] = ".ase"}
-    -- switch the created sprite to the active tab
-else
-    local sprite = app.activeSprite;
-    if sprite == nil then
-        print("you are not viewing a sprite on the active tab")
-        return 1
-    end
-    local dlg = Dialog()
+-- no need to do eyes, it is optional becuase we have a ton of eyes! Zed should be faceless?
 
-    -- tries to guess that the png & json are in the same directory
-    local json_filepath = app.fs.filePathAndTitle(sprite.filename) .. ".json"
-    local exists_in_same_dir = app.fs.isFile(json_filepath)
-    if exists_in_same_dir == false then
-        json_filepath = "" -- not in same dir, look for it yourself
-    end
-
-    dlg:file{
-        id = PICKER,
-        label = "select animation data file(json)",
-        title = "animimation tag importer",
-        load = true,
-        open = true,
-        filename = json_filepath,
-        filetypes = {"json"}
-    }:button{
-        id = "Ok",
-        text = "Ok",
-        onclick = function()
-            local filepath = dlg.data[PICKER] -- matches id name
-
-            build(filepath)
-            dlg:close()
-        end
-    }:show()
-end

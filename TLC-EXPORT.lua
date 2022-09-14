@@ -1,4 +1,4 @@
---[[ TLC Export v1 
+--[[ TLC Export v2 
 
 This script scans animations and removes/combines CONSECUTIVE duplicates!
 
@@ -13,36 +13,46 @@ local body_layer = layers[2]
 local all_tag_names = {}
 
 -- idle animations are optional and will default to blink if not found in game
-local all_human_anim_names = {
+-- run animations are optional, the game will shift them to bounce
+local required_human_anims = {
     "drawn_e", "drawn_n", "drawn_s", "drawn_w", "hurtwalk_e", "hurtwalk_n",
-    "hurtwalk_s", "hurtwalk_w", --[[ "idle_e", "idle_n", "idle_s", "idle_w", ]] "run_e",
-    "run_n", "run_s", "run_w", "sleep_e", "sleep_n", "sleep_s", "sleep_w",
-    "walk_e", "walk_n", "walk_s", "walk_w", "hurtidle_e", "hurtidle_n",
-    "hurtidle_s", "hurtidle_w", "tiredidle_e", "tiredidle_n", "tiredidle_s",
-    "tiredidle_w", "melee_e", "handgun_e", "machineh_e",
-    "shotgun_e", "wink_e", "wink_s", "wink_w", "wink_n", "blink_e", "blink_s", "blink_w", "blink_n"
+    "hurtwalk_s", "hurtwalk_w", --[[ "idle_e", "idle_n", "idle_s", "idle_w",
+    "run_e", "run_n", "run_s", "run_w", ]] "sleep_e", "sleep_n", "sleep_s",
+    "sleep_w", "walk_e", "walk_n", "walk_s", "walk_w", "hurtidle_e",
+    "hurtidle_n", "hurtidle_s", "hurtidle_w", "tiredidle_e", "tiredidle_n",
+    "tiredidle_s", "tiredidle_w", "melee_e", "handgun_e", "machineh_e",
+    "shotgun_e", --[[ "wink_e", ]] "wink_s", --[[ "wink_w", "wink_n", ]] "blink_e", "blink_s",
+    "blink_w", "blink_n"
 }
 
-for _, layer in ipairs(layers) do 
-    if layer.name == "head" then 
+for _, layer in ipairs(layers) do
+    if layer.name == "head" then
         head_layer = layer;
-    elseif layer.name == "body" then 
+    elseif layer.name == "body" then
         body_layer = layer;
     end
 end
 
-local everything_is_good = true 
+local everything_is_good = true
 
-if #layers > 2 then 
+if #layers > 2 then
     everything_is_good = false
 
-    for _, layer in ipairs(layers) do 
+    for _, layer in ipairs(layers) do
         local is_head = layer.name == "head"
         local is_body = layer.name == "body"
         local is_eyes = layer.name == "eyes"
         local is_legs = layer.name == "legs"
-        if (is_head or is_body or is_eyes or is_legs) == false then 
-            print("!!!CRITICAL!!!: PLEASE MARK " .. layer.name .. " AS INVISIBLE")
+        if (is_head or is_body or is_eyes or is_legs) == false then
+            if layer.isVisible then
+                print("!!!CRITICAL!!!: PLEASE MARK " .. layer.name ..
+                          " AS INVISIBLE")
+            end
+        else
+            if layer.isVisible == false then
+                print("!!!CRITICAL!!!: IMPORTANT HIDDEN LAYER, PLEASE MARK " ..
+                          layer.name .. " AS VISIBLE")
+            end
         end
     end
 end
@@ -105,12 +115,16 @@ for i, tag in ipairs(sprite.tags) do
             -- https://github.com/aseprite/aseprite/issues/3206
             -- FOR NOW JUST CHECK THE RESULTING OUTPUT TEXTURE
             -- checks if less than 32 because of bugged bounds ^
-            local is_head_wide = head_cel.bounds.width > warn_head_w and head_cel.bounds.width < 32
-            local is_head_tall = head_cel.bounds.height > warn_head_h and head_cel.bounds.height < 32
-            local is_body_wide = body_cel.bounds.width > warn_body_w and body_cel.bounds.width < 32
-            local is_body_tall = body_cel.bounds.height > warn_body_h and body_cel.bounds.height < 32
+            local is_head_wide = head_cel.bounds.width > warn_head_w and
+                                     head_cel.bounds.width < 32
+            local is_head_tall = head_cel.bounds.height > warn_head_h and
+                                     head_cel.bounds.height < 32
+            local is_body_wide = body_cel.bounds.width > warn_body_w and
+                                     body_cel.bounds.width < 32
+            local is_body_tall = body_cel.bounds.height > warn_body_h and
+                                     body_cel.bounds.height < 32
 
-     --[[        print(" head " .. head_cel.bounds.width .. " h " ..
+            --[[        print(" head " .. head_cel.bounds.width .. " h " ..
                       head_cel.bounds.height)
             print(" body " .. body_cel.bounds.width .. " h " ..
                       body_cel.bounds.height) ]]
@@ -140,10 +154,9 @@ for i, tag in ipairs(sprite.tags) do
                 -- print(name, frame_index, next_index, "head ", is_head_eq, "body ", is_body_eq)
                 if is_head_eq and is_body_eq then
                     everything_is_good = false
-                    print(
-                        "!!OPTIMIZE!! '" .. name .. "' " .. frame_index .. " to " ..
-                            next_index ..
-                            " are the same and can be merged into 1 frame with the combined duration!")
+                    print("!!OPTIMIZE!! '" .. name .. "' " .. frame_index ..
+                              " to " .. next_index ..
+                              " are the same and can be merged into 1 frame with the combined duration!")
                 end
                 --[[ if is_body_eq == false then
                     print(b_img.spec.colorMode, next_b_img.spec.colorMode)
@@ -167,11 +180,11 @@ function print_uniques(ls, h_or_b)
     end
 end
 
-table.sort(all_human_anim_names)
+table.sort(required_human_anims)
 table.sort(all_tag_names)
 
 -- check to see if there are any missing animations
-for index, item in ipairs(all_human_anim_names) do
+for index, item in ipairs(required_human_anims) do
     local is_missing = true
     for _, j in ipairs(all_tag_names) do
         if j == item then
@@ -186,9 +199,11 @@ for index, item in ipairs(all_human_anim_names) do
 end
 
 if everything_is_good then 
+    print("Did you know that run and idle are optional animations you can add?")
     print("WOOO! EVERYTHING IS GOOD :)")
-end
+ end
 
+print("TLC-EXPORT V2.0.1")
 print("===STATS===")
 
 print("==UNIQUIE HEADS==")
@@ -207,33 +222,37 @@ print("Combined " .. #unique_bodies + #unique_bodies)
 
 local filename = sprite.filename
 
-local name_without_ext = filename:sub(1, -5)
-
+-- local name_without_ext = filename:sub(1, -5)
+local name_without_ext = app.fs.fileTitle(filename)
+-- make sure name has no underscore
+local normalize_name = string.gsub(name_without_ext, "_", "-")
+local format_name = "{layer}-" .. normalize_name .. "_{tag}_{tagframe}_{duration}"
+--print(format_name)
 app.command.ExportSpriteSheet {
-  ui=true,
-  askOverwrite=true,
-  type=SpriteSheetType.PACKED,
-  columns=0,
-  rows=0,
-  width=0,
-  height=0,
-  bestFit=true, -- no idea what this does
-  textureFilename=name_without_ext.. ".png",
-  dataFilename=name_without_ext.. ".json",
-  dataFormat=SpriteSheetDataFormat.JSON_ARRAY,
-  borderPadding=0,
-  shapePadding=2,
-  innerPadding=0,
-  trim=true,
-  trimSprite=true,
-  ignoreEmpty=true,
-  filenameFormat="{layer}-{title}_{tag}_{tagframe}_{duration}", --[[ e.g: body-jeff_walk_0_100 ]]
-  extrude=false,
-  openGenerated=false,
-  layer="",
-  tag="",
-  splitLayers=true,
-  listLayers=false,
-  listTags=false,
-  listSlices=false
+    ui = true,
+    askOverwrite = true,
+    type = SpriteSheetType.PACKED,
+    columns = 0,
+    rows = 0,
+    width = 0,
+    height = 0,
+    bestFit = true, -- no idea what this does
+    textureFilename = normalize_name .. ".png",
+    dataFilename = normalize_name .. ".json",
+    dataFormat = SpriteSheetDataFormat.JSON_ARRAY,
+    borderPadding = 0,
+    shapePadding = 1,
+    innerPadding = 0,
+    trim = true,
+    trimSprite = true,
+    ignoreEmpty = true,
+    filenameFormat = format_name, --[[ e.g: body-jeff_walk_0_100 ]]
+    extrude = false,
+    openGenerated = false,
+    layer = "",
+    tag = "",
+    splitLayers = true,
+    listLayers = false,
+    listTags = false,
+    listSlices = false
 }
