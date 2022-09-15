@@ -1,3 +1,8 @@
+# 2.0.2
+## TLC-COPY-PASTER
+* Now properly pastes the blink heads
+* Removed version name from file
+
 # 2.0.1
 ## TLC-IMPORT-ATLAS
 * Remove uneeded buggy sorting
