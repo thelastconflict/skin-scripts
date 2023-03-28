@@ -1,3 +1,13 @@
+# 2.0.3
+## ADDED: TLC-ZOMBIE-EXPORT
+## TLC-ZOMBIFY
+* Fixed crashes
+* Automatically samples face on specific places
+* Ignore replacing the color black
+* Fix bug with misplaced `_` seperator, e.g `d1-walk` should really be `d1_walk`
+## TLC-COPY-PASTER
+* Made wink more easier to do
+
 # 2.0.2
 ## TLC-COPY-PASTER
 * Now properly pastes the blink heads
