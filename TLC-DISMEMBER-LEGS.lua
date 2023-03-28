@@ -61,7 +61,8 @@ for frame_count, frame in ipairs(sprite.frames) do
     end
 end
 
-while #sprite.frames < 66 do local frame = sprite:newEmptyFrame() end
+local MAX_FRAMES = 74
+while #sprite.frames < MAX_FRAMES do local frame = sprite:newEmptyFrame() end
 
 --[[ local walk_w_tag = get_tag(tags, "walk_w")
 walk_w_tag.toFrame = LAST_WALK_FRAME_NUM ]]
@@ -73,22 +74,26 @@ death_w_tag.toFrame = FINAL_DEATH_FRAMENUM
 -- todo: need to add the durations for these frames
 
 local insert_dismembered = {
-    {name= "d1-walk_e", dur=200},
-    {name= "d1-walk_n", dur=200},
-    {name= "d1-walk_s", dur=200},
-    {name= "d1-walk_w",  dur=200},
-    {name= "d1-battack_e", dur=200},
-    {name= "d1-battack_n",  dur=200},
-    {name= "d1-battack_s",  dur=200},
-    {name= "d1-battack_w",  dur=200},
-    {name= "d2-walk_e",  dur=200},
-    {name= "d2-walk_n", dur=200},
-    {name= "d2-walk_s",  dur=200},
-    {name= "d2-walk_w",  dur=200},
-    {name= "d2-battack_e",  dur=200},
-    {name= "d2-battack_n",  dur=200},
-    {name= "d2-battack_s", dur=200},
-    {name= "d2-battack_w",dur=200},
+    {name= "d1_battack_e", dur=200},
+    {name= "d1_battack_n",  dur=200},
+    {name= "d1_battack_s",  dur=200},
+    {name= "d1_battack_w",  dur=200},
+    {name= "d1_death_s",  dur=999},
+    {name= "d1_walk_e", dur=200},
+    {name= "d1_walk_n", dur=200},
+    {name= "d1_walk_s", dur=200},
+    {name= "d1_walk_w",  dur=200},
+
+    {name= "d2_battack_e",  dur=200},
+    {name= "d2_battack_n",  dur=200},
+    {name= "d2_battack_s", dur=200},
+    {name= "d2_battack_w",dur=200},
+    {name= "d2_death_s",  dur=999},
+    {name= "d2_walk_e",  dur=200},
+    {name= "d2_walk_n", dur=200},
+    {name= "d2_walk_s",  dur=200},
+    {name= "d2_walk_w",  dur=200},
+
 }
 
 local dismember_counter = FINAL_DEATH_FRAMENUM + 1 -- after the last anim, e.g death anim
@@ -104,10 +109,20 @@ for _, info in ipairs(insert_dismembered) do
         stride = 4
     elseif string.find(name, "battack") then
         stride = 2
+    elseif string.find(name, "death") then
+        stride = 1
     end
     local tag = sprite:newTag(dismember_counter, dismember_counter + stride - 1)
     dismember_counter = dismember_counter + stride
     tag.name = name
+    local from_frame = tag.fromFrame
+    local to_frame = tag.toFrame
+    for global_frame_index = from_frame.frameNumber, to_frame.frameNumber, 1 do 
+        local to_secs = duration / 1000 -- aseprite expects units in terms of secs when setting duration
+        sprite.frames[global_frame_index].duration = to_secs
+        --print(global_frame_index, tag.name, to_secs)
+    end
+    --tag.duration = duration
 end
 
 app.command.CanvasSize {

@@ -391,6 +391,8 @@ local function draw_into_tag(tag, grouped, draw_layer, new_sprite, source_img,
 
         local anim_name = state .. "_" .. dir
         -- local matches = tag.name == anim_name
+        -- if blink tag doesn't exist, don't try to draw it
+        if tag == nil then return end
         local matches = string.match(tag.name, anim_name)
         -- print(anim_name, tag.name, matches)
         if matches then
@@ -419,6 +421,19 @@ local PACKED = "select packed PNG"
 local AJSON = "select json file"
 local zbase = nil;
 
+--[[ ; left is human, right is mapped to zombie
+; 7 pixels in total
+
+(define white->zombie
+  (list
+   (list (color 192 192 192 255) (color 140 140 140 255)) ; upper eye
+   (list (color 245 245 240 255) (color 155 155 155 255)) ; eye white part next to pupil
+   (list (color 255 204 51 255) (color 140 140 140 255)) ; eye pupil ; NOTE! SOME LIKE THE HELMETED HEADS DON'T USE THIS COLOR
+   (list (color 180 124 50 255) (color 75 70 60 255)) ;lower bottom last chin
+   (list (color 214 164 98 255) (color 75 70 60 255)) ; lower side cheeks
+   (list (color 255 214 164 255) (color 115 110 95 255)) ; middle nose
+   (list (color 246 190 124 255) (color 100 90 80 255)))) ; -1px under eye pupil cheek ]]
+
 -- todo: sort the skin colors and detect duplicates?
 -- assume white and have a button option that says "try based off position?"
 
@@ -429,11 +444,13 @@ local white_tones = {
     -- Color {r = 192, g = 192, b = 192, a = 255},
     -- Color {r = 245, g = 245, b = 240, a = 255},
     -- Color {r = 255, g = 204, b = 51, a = 255},
-    Color {r = 180, g = 125, b = 50, a = 255},
-    Color {r = 213, g = 164, b = 98, a = 255},
-    Color {r = 255, g = 215, b = 165, a = 255},
-    Color {r = 245, g = 190, b = 125, a = 255}
+    Color {r = 180, g = 125, b = 50, a = 255}, -- lower bottom last chin
+    Color {r = 213, g = 164, b = 98, a = 255}, -- lower side cheeks
+    Color {r = 255, g = 215, b = 165, a = 255}, -- middle nose
+    Color {r = 245, g = 190, b = 125, a = 255} -- -1px under eye pupil cheek
 }
+
+local desc = {"Chin", "Cheeks", "Nose", "Below Eye"}
 
 local zombie_tones = {
     -- Color {r = 140, g = 140, b = 140, a = 255},
@@ -446,7 +463,8 @@ local zombie_tones = {
 }
 
 local skin_colors = white_tones;
--- include the zed base ase with the game and hardcode a path to it, see if it exsts, if not you have to select it yourself
+-- TODO include the zed base ase with the game and hardcode a path to it, see if it exsts, if not you have to select it yourself
+-- it should assume its in .config/aseprite/aseprite/ascripts for linux and %appdata% for windows?
 local zbase_ase_path = "/mnt/shared/t0-assets/zeds/ase/ZBASE-NEW-SUITE.ase"
 
 local infered_json_filename = nil
@@ -482,19 +500,23 @@ dlg:file{
     load = false
 }
 
--- todo: button that asks if we want to try and determine this off hard coded face positions?
+local sample_cords = {
+    Point(15, 13),
+    Point(14, 12),
+    Point(15, 11),
+    Point(14, 11),
+}
 
-for i = 1, #white_tones, 1 do
-    local SCOL = "Skin Color " .. i;
-    dlg:color{
-        id = SCOL,
-        label = SCOL,
-        color = white_tones[i],
-        onchange = function() skin_colors[i] = dlg.data[SCOL] end
-    }
+for i, des in ipairs(desc) do
+    local x_des = des .. " x"
+    local y_des = des .. " y"
+    dlg:number{id=x_des, label=x_des, text=tostring(sample_cords[i].x), onchange=function() sample_cords[i].x = tonumber(dlg.data[x_des]) end}
+    dlg:number{id=y_des, label=y_des, text=tostring(sample_cords[i].y), onchange=function() sample_cords[i].y = tonumber(dlg.data[y_des]) end}
+
 end
 
 local packed_png = nil
+local packed_sprite = nil
 local jsondata = nil
 dlg:button{
     text = "Ok",
@@ -505,6 +527,7 @@ dlg:button{
         app.command.OpenFile {filename = human_packed_png};
         -- this must be the active image right after we open it!
         packed_png = app.activeImage
+        packed_sprite = app.activeSprite
         jsondata = json.decode(io.open(json_path, "r+"):read("a"));
         zbase = Sprite {fromFile = zbasefile}
         dlg:close()
@@ -512,7 +535,7 @@ dlg:button{
 }:show()
 
 if zbase ~= nil then
-
+    zbase.filename = "zed-" .. app.fs.fileTitle(dlg.data[PACKED])
     -- create new layers of body and head
     -- also we gotta split the legs
     -- grab walk animations, 2 and 3 only(so south and north in the zbase have all the walk anim legs, so we will just copy all the walk frames over to walk)
@@ -603,32 +626,40 @@ if zbase ~= nil then
 
     for _, tag_name in ipairs(walk_tags) do
         local tag = get_tag(zbase.tags, tag_name)
-        draw_into_tag(tag, heads, head_layer, zbase, packed_png, nil)
-        draw_into_tag(tag, bodies, body_layer, zbase, packed_png, nil)
+        draw_into_tag(tag, heads, head_layer, zbase, packed_png, packed_sprite.palettes[1])
+        draw_into_tag(tag, bodies, body_layer, zbase, packed_png, packed_sprite.palettes[1])
     end
 
     local range_sel = app.range
     range_sel.layers = {body_layer, head_layer}
 
-    for i, tone in ipairs(white_tones) do
-        local ztone = zombie_tones[i]
-        -- select all the frames?
+    -- String, Layer -> Nil | Layer
+    local function get_layer(name, layers) 
+        local res = nil;
+        for _, layer in ipairs(layers) do 
+            if name == layer.name then 
+                res = layer
+                break
+            end
+        end
+        if res == nil then 
+            print("WARNING, " .. name .. " IS NILL")
+        end
+        return res
+    end
 
-        -- tolerance has to be 5+? or it wont work on brandi
-        local tol = 5
-        app.command.ReplaceColor {
-            ui = false,
-            -- channels = FilterChannels.RGBA | FilterChannels.INDEX,
-            from = tone,
-            to = ztone,
-            tolerance = tol
-        }
+    -- returns pixel or nil
+    local function get_pixel_absolute(image, x, y) 
+        local cel = image.cel
+        local adjx = math.abs(cel.position.x - x)
+        local adjy = math.abs(cel.position.y - y)
+        return image:getPixel(adjx, adjy)
+        -- image:drawPixel(adjx, adjy, Color{ r=255, g=0, b=0, a=255 })
     end
 
     -- d1 shift head 8 down
-    local d1s = {"d1-walk_e", "d1-walk_n", "d1-walk_s", "d1-walk_w"}
+    local d1s = {"d1_walk_e", "d1_walk_n", "d1_walk_s", "d1_walk_w"}
     -- print(range_sel.frames)
-    local ls = {}
     for i, tname in ipairs(d1s) do
         -- need to select only relevant frames
         local tag = get_tag(zbase.tags, tname)
@@ -666,6 +697,28 @@ if zbase ~= nil then
         bottom = 0,
         trimOutside = true
     }
+
+    -- RE-COLOR
+    local hcel = head_layer:cel(18) -- south facing 2nd frame
+    local himage = hcel.image
+    -- print(hcel.bounds.x, hcel.bounds.y, hcel.bounds.width, hcel.bounds.height)
+
+    for i, point in ipairs(sample_cords) do
+        local htone = get_pixel_absolute(himage, point.x, point.y)
+        local ztone = zombie_tones[i]
+        local human_tone = Color(htone)
+        -- print(human_tone.red, human_tone.green, human_tone.blue, human_tone.alpha)
+        -- NOTE: LAST CHIN(THE FIRST ONE) COULD BE BLACK, IGNORE BLACK
+        if human_tone.red ~= 0 and human_tone.green ~= 0 and human_tone.blue ~= 0 then 
+            app.command.ReplaceColor {
+                ui = false,
+                -- channels = FilterChannels.RGBA | FilterChannels.INDEX,
+                from = human_tone,
+                to = ztone,
+                tolerance = 0
+            }
+        end
+    end
     -- close the opened packed image tab
 end
 

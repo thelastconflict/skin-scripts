@@ -52,6 +52,7 @@ end
 -- if 1 cel copy is provided, it will be spread accross all.
 function pastey(to_layer, tagname, existing_layer, copies, match_bottom)
     local tag = get_tag(sprite.tags, tagname)
+    
     local from_frame = tag.fromFrame.frameNumber
     local to_frame = tag.toFrame.frameNumber
 
@@ -163,7 +164,7 @@ dlg:combobox{
         --[[ pastey(to_layer, "wink_e", hlayer, {eyes_closed_cel_e}, false)
         pastey(to_layer, "wink_w", hlayer, {eyes_closed_cel_w}, false)
         pastey(to_layer, "wink_n", hlayer, {eyes_closed_cel_n}, false) ]]
-        pastey(to_layer, "wink_s", hlayer, {eyes_full_cel_s, eyes_part_cel_s, eyes_closed_cel_s}, false)
+        pastey(to_layer, "wink_s", hlayer, {eyes_full_cel_s, eyes_full_cel_s, eyes_full_cel_s}, false)
 
         pastey(to_layer, "drawn_e", hlayer, {eyes_full_cel_e}, false)
         pastey(to_layer, "drawn_w", hlayer, {eyes_full_cel_w}, false)
