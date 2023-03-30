@@ -23,7 +23,31 @@ base
 local sprite = app.activeSprite
 local layers = sprite.layers
 
+-- returns tag or nil
+function get_tag(ls, name)
+    local res = nil
+    for _, t in ipairs(ls) do if t.name == name then res = t end end
+    if res == nil then print("WARNING! COULD NOT FIND TAG" .. name) end
+    return res
+end
+
 local function merge_body_legs()
+    -- NOTE: We delete death anims because of dismem and them being more dynamic! ONLY RUN THIS ON ZEDS THAT DON'T HAVE A DEATH ANIM
+    local deaths = {
+        get_tag(sprite.tags, "death_s"),
+        get_tag(sprite.tags, "death_n"),
+        get_tag(sprite.tags, "death_w"),
+        get_tag(sprite.tags, "death_e")
+    }
+    for _, tag in ipairs(deaths) do 
+        if tag ~= nil then
+            local curr_frame = tag.fromFrame
+            sprite:deleteFrame(curr_frame)
+            -- print(curr_frame, to_frame)
+            --print(tag.name)
+        end
+    end
+
     -- make the base zed grouped layers visible except for bhead
     for _, layer in ipairs(layers) do
         if layer.isGroup then
