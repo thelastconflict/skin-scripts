@@ -1,3 +1,6 @@
+# 2.0.4
+* FIXED: bug where exporting on windows would export to aseprite.exe directory opposed to the .ase path
+
 # 2.0.3
 ## ADDED: TLC-ZOMBIE-EXPORT
 ## TLC-ZOMBIFY

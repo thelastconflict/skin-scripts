@@ -220,10 +220,10 @@ print("Combined " .. #unique_bodies + #unique_bodies)
 -- export, popup the file picker to prompt merging of conesutive frames and printing of debug?
 -- https://github.com/aseprite/api/blob/main/api/command/ExportSpriteSheet.md#exportspritesheet
 
-local filename = sprite.filename
-
+local full_filepath = sprite.filename
+local file_folderpath = app.fs.filePath(full_filepath)
 -- local name_without_ext = filename:sub(1, -5)
-local name_without_ext = app.fs.fileTitle(filename)
+local name_without_ext = app.fs.fileTitle(full_filepath)
 -- make sure name has no underscore
 local normalize_name = string.gsub(name_without_ext, "_", "-")
 local format_name = "{layer}-" .. normalize_name .. "_{tag}_{tagframe}_{duration}"
@@ -237,8 +237,8 @@ app.command.ExportSpriteSheet {
     width = 0,
     height = 0,
     bestFit = true, -- no idea what this does
-    textureFilename = normalize_name .. ".png",
-    dataFilename = normalize_name .. ".json",
+    textureFilename = app.fs.joinPath(file_folderpath, normalize_name .. ".png"),
+    dataFilename = app.fs.joinPath(file_folderpath, normalize_name .. ".json"),
     dataFormat = SpriteSheetDataFormat.JSON_ARRAY,
     borderPadding = 0,
     shapePadding = 1,
