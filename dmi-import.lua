@@ -195,7 +195,7 @@ if app.isUIAvailable then
         id = "Ok",
         text = "Ok",
         onclick = function()
-            print(dlg.data[PICKER])
+            -- print(dlg.data[PICKER])
             import_image(dlg.data[PICKER])
             dlg:close()
         end
