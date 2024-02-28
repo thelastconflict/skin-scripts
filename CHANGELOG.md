@@ -1,3 +1,6 @@
+# 2.0.5
+* ADDED: dmi-import.lua and dump_ztxt.exe(https://github.com/thelastconflict/dump_ztxt) to easily import dmi files into aseprite
+
 # 2.0.4
 * FIXED: bug where exporting on windows would export to aseprite.exe directory opposed to the .ase path
 
