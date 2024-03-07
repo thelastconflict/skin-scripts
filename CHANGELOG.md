@@ -1,3 +1,7 @@
+# 2.0.6
+ADDED: TlC-char-dmi_import.lua to convert character.dmi icons to aseprite files which ALSO cuts heads and bodies.
+UPDATED: TLC-COPY-PASTER to account for the new "down/crawl" animation
+
 # 2.0.5
 * ADDED: dmi-import.lua and dump_ztxt.exe(https://github.com/thelastconflict/dump_ztxt) to easily import dmi files into aseprite
 

@@ -166,6 +166,7 @@ dlg:combobox{
         pastey(to_layer, "wink_n", hlayer, {eyes_closed_cel_n}, false) ]]
         pastey(to_layer, "wink_s", hlayer, {eyes_full_cel_s, eyes_full_cel_s, eyes_full_cel_s}, false)
 
+        pastey(to_layer, "down_n", hlayer, {eyes_closed_cel_n}, false)
         pastey(to_layer, "drawn_e", hlayer, {eyes_full_cel_e}, false)
         pastey(to_layer, "drawn_w", hlayer, {eyes_full_cel_w}, false)
         pastey(to_layer, "drawn_n", hlayer, {eyes_closed_cel_n}, false)
@@ -254,6 +255,8 @@ dlg:combobox{
         pastey(to_layer, "hurtwalk_n", blayer, {leg_close_n, leg_still_n1}, true)
         pastey(to_layer, "hurtwalk_s", blayer, {leg_close_s, leg_still_s1}, true)
         pastey(to_layer, "hurtwalk_w", blayer, {leg_close_w, leg_still_w1}, true)
+
+        pastey(to_layer, "down_n", blayer, {leg_still_n1, leg_close_n, leg_still_n1, leg_spread_n}, false)
 
         pastey(to_layer, "drawn_e", blayer, {leg_spread_e, leg_close_e}, false)
         pastey(to_layer, "drawn_n", blayer, {leg_spread_n, leg_close_n}, false)
