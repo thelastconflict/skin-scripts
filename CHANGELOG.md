@@ -1,3 +1,7 @@
+# 2.0.7
+TLC-ZOMBIFY: Fixed error when replacing colors. 
+    ADDED: Selecting the zbase file in scripts folder
+
 # 2.0.6
 ADDED: TlC-char-dmi_import.lua to convert character.dmi icons to aseprite files which ALSO cuts heads and bodies.
 UPDATED: TLC-COPY-PASTER to account for the new "down/crawl" animation

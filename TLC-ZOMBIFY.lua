@@ -463,9 +463,15 @@ local zombie_tones = {
 }
 
 local skin_colors = white_tones;
--- TODO include the zed base ase with the game and hardcode a path to it, see if it exsts, if not you have to select it yourself
+-- zed base ase should be in scripts folder, see if it exsts, if not you have to select it yourself
 -- it should assume its in .config/aseprite/aseprite/ascripts for linux and %appdata% for windows?
-local zbase_ase_path = "/mnt/shared/t0-assets/zeds/ase/ZBASE-NEW-SUITE.ase"
+-- GUARENTEED WORKING WITH V1.3.5 (linux)
+local install_path = app.fs.userConfigPath
+local scripts_path = app.fs.joinPath(install_path, "scripts")
+local zbase_ase_path = app.fs.joinPath(scripts_path, "ZBASE-NEW-SUITE.ase")
+if not app.fs.isFile(zbase_ase_path) then
+    zbase = "" -- gotta look for it yourself
+end
 
 local infered_json_filename = nil
 dlg:file{
@@ -701,22 +707,40 @@ if zbase ~= nil then
     -- RE-COLOR
     local hcel = head_layer:cel(18) -- south facing 2nd frame
     local himage = hcel.image
+    local replace_frames = {9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}
     -- print(hcel.bounds.x, hcel.bounds.y, hcel.bounds.width, hcel.bounds.height)
 
-    for i, point in ipairs(sample_cords) do
-        local htone = get_pixel_absolute(himage, point.x, point.y)
-        local ztone = zombie_tones[i]
-        local human_tone = Color(htone)
-        -- print(human_tone.red, human_tone.green, human_tone.blue, human_tone.alpha)
-        -- NOTE: LAST CHIN(THE FIRST ONE) COULD BE BLACK, IGNORE BLACK
-        if human_tone.red ~= 0 and human_tone.green ~= 0 and human_tone.blue ~= 0 then 
-            app.command.ReplaceColor {
-                ui = false,
-                -- channels = FilterChannels.RGBA | FilterChannels.INDEX,
-                from = human_tone,
-                to = ztone,
-                tolerance = 0
-            }
+    local sampled_htones = {}
+    for i, point in ipairs(sample_cords) do 
+        local c = get_pixel_absolute(himage, point.x, point.y)
+        if c == nil then 
+            c = Color{red = 0, blue = 0, green = 0, alpha = 0}
+        else
+            c = Color(c)
+        end
+        sampled_htones[i] = c
+    end
+    -- cannot just select an entire layer and try to replace colors because trying to replace colors on empty cels is a hard error
+    for _, fnum in ipairs(replace_frames) do 
+        local replace_h = head_layer:cel(fnum)
+        app.activeCel = replace_h
+        for i, htone in ipairs(sampled_htones) do 
+            -- NOTE: LAST CHIN(THE FIRST ONE) COULD BE BLACK, IGNORE BLACK
+            if htone.red ~= 0 and htone.green ~= 0 and htone.blue ~= 0 then 
+                local ztone = zombie_tones[i]
+                app.command.ReplaceColor {ui = false, from=htone, to=ztone, tolerance=0}
+            end
+        end
+
+        -- do the same for bodies
+        local replace_b = body_layer:cel(fnum)
+        app.activeCel = replace_b
+        for i, htone in ipairs(sampled_htones) do 
+            -- NOTE: LAST CHIN(THE FIRST ONE) COULD BE BLACK, IGNORE BLACK
+            if htone.red ~= 0 and htone.green ~= 0 and htone.blue ~= 0 then 
+                local ztone = zombie_tones[i]
+                app.command.ReplaceColor {ui = false, from=htone, to=ztone, tolerance=0}
+            end
         end
     end
     -- close the opened packed image tab
