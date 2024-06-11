@@ -1,3 +1,7 @@
+# 2.0.9
++ tlc-char-dmi-import: fixed bug where we sometimes did not create enough frames to fit all animations(run with blackops female soilder). It is mainly an issue with those who have idle anims?
++ tlc-copy-paster: fixed bug where sit_n head was pasted wrongly(it was sit_e instead)
+
 # 2.0.8
 + mask.ase: now has sit state
 + tlc-char-dmi-import: now copies dummy heads&bodies to sit state

@@ -146,7 +146,7 @@ dlg:combobox{
         pastey(to_layer, "run_s", hlayer, {eyes_full_cel_s}, false) ]]
 
         pastey(to_layer, "sit_e", hlayer, {eyes_full_cel_e, eyes_part_cel_e, eyes_closed_cel_e}, false)
-        pastey(to_layer, "sit_n", hlayer, {eyes_full_cel_e}, false)
+        pastey(to_layer, "sit_n", hlayer, {eyes_closed_cel_n}, false)
         pastey(to_layer, "sit_s", hlayer, {eyes_full_cel_s, eyes_part_cel_s, eyes_closed_cel_s}, false)
         pastey(to_layer, "sit_w", hlayer, {eyes_full_cel_w, eyes_part_cel_w, eyes_closed_cel_w}, false)
 

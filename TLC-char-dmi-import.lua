@@ -379,6 +379,17 @@ local function import_image(image_path, mask_sprite)
     --    print(t[K_STATE])
     --    for i, v in ipairs(t[K_INDICIES]) do print(v) end
     -- end
+    local need_total_frames = 0
+    for _, anim in ipairs(new_anims) do 
+        if anim ~= false then
+            need_total_frames = need_total_frames + #anim.frames
+        end
+    end
+    --print(need_total_frames, #sprite.frames)
+    for i = #sprite.frames, need_total_frames + 1 do 
+        sprite:newFrame(i)
+    end
+
     local seq_counter = 1
     for _, anim in ipairs(new_anims) do
         if anim == false then goto continue end
