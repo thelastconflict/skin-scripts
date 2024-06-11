@@ -1,3 +1,8 @@
+# 2.0.8
++ mask.ase: now has sit state
++ tlc-char-dmi-import: now copies dummy heads&bodies to sit state
++ tlc-copy-paster: now copies heads&bodies to sit state
+
 # 2.0.7
 TLC-ZOMBIFY: Fixed error when replacing colors. 
     ADDED: Selecting the zbase file in scripts folder

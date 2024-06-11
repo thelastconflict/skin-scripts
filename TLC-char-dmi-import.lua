@@ -301,7 +301,12 @@ local function import_image(image_path, mask_sprite)
         }, {
             new_name = "hurtwalk_w",
             frames = {mbase("normal_w", 2), mbase("normal_w", 1)}
-        }, {new_name = "sleep_e", frames = {mbase("normal_sleeping_e", 1)}},
+        }, 
+        {new_name = "sit_e", frames = {mbase("normal_e", 1), mbase("normal_e", 1), mbase("normal_sleeping_e", 1)}},
+        {new_name = "sit_n", frames = {mbase("normal_n", 1)}},
+        {new_name = "sit_s", frames = {mbase("normal_s", 1), mbase("normal_s", 1), mbase("normal_sleeping_s", 1)}},
+        {new_name = "sit_w", frames = {mbase("normal_w", 1), mbase("normal_w", 1), mbase("normal_sleeping_w", 1)}},
+        {new_name = "sleep_e", frames = {mbase("normal_sleeping_e", 1)}},
         {new_name = "sleep_n", frames = {mbase("normal_sleeping_n", 1)}},
         {new_name = "sleep_s", frames = {mbase("normal_sleeping_s", 1)}},
         {new_name = "sleep_w", frames = {mbase("normal_sleeping_w", 1)}}, {
@@ -569,7 +574,8 @@ local scripts_dir = app.fs.joinPath(config_path, "scripts")
 local mask_ase_path = app.fs.joinPath(scripts_dir, "mask.ase")
 if app.isUIAvailable then
     -- https://github.com/aseprite/aseprite/issues/4352 MAKES IT SO WE HAVE TO OPEN THE MASK FILE FIRST CAUSE WE CANT CLOSE OR SWITCH TABS WITHOUT CRASHING
-    local mask_sprite = app.open(mask_ase_path)
+    -- NOTE: Because --batch mode is bugged atm(see below), for automation, we are running with UI, hence why the file picker stuff is commented out atm
+        local mask_sprite = app.open(mask_ase_path)
     if mask_sprite == nil then
         print("could not open mask ase file")
         return

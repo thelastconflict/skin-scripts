@@ -145,6 +145,11 @@ dlg:combobox{
         pastey(to_layer, "run_n", hlayer, {eyes_closed_cel_n}, false)
         pastey(to_layer, "run_s", hlayer, {eyes_full_cel_s}, false) ]]
 
+        pastey(to_layer, "sit_e", hlayer, {eyes_full_cel_e, eyes_part_cel_e, eyes_closed_cel_e}, false)
+        pastey(to_layer, "sit_n", hlayer, {eyes_full_cel_e}, false)
+        pastey(to_layer, "sit_s", hlayer, {eyes_full_cel_s, eyes_part_cel_s, eyes_closed_cel_s}, false)
+        pastey(to_layer, "sit_w", hlayer, {eyes_full_cel_w, eyes_part_cel_w, eyes_closed_cel_w}, false)
+
         pastey(to_layer, "sleep_e", hlayer, {eyes_closed_cel_e}, false)
         pastey(to_layer, "sleep_w", hlayer, {eyes_closed_cel_w}, false)
         pastey(to_layer, "sleep_n", hlayer, {eyes_closed_cel_n}, false)
@@ -235,6 +240,11 @@ dlg:combobox{
         pastey(to_layer, "hurtidle_n", blayer, {leg_still_n1}, true)
         pastey(to_layer, "hurtidle_s", blayer, {leg_still_s1}, true)
         pastey(to_layer, "hurtidle_w", blayer, {leg_still_w1}, true)
+
+        pastey(to_layer, "sit_e", blayer, {leg_still_e1,leg_still_e1,leg_still_e1}, true)
+        pastey(to_layer, "sit_n", blayer, {leg_still_n1}, true)
+        pastey(to_layer, "sit_s", blayer, {leg_still_s1,leg_still_s1,leg_still_s1}, true)
+        pastey(to_layer, "sit_w", blayer, {leg_still_w1,leg_still_w1,leg_still_w1}, true)
 
         pastey(to_layer, "sleep_e", blayer, {leg_still_e1}, true)
         pastey(to_layer, "sleep_n", blayer, {leg_still_n1}, true)
